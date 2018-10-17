@@ -22,8 +22,9 @@ import com.hortonworks.registries.schemaregistry.{SchemaVersionInfo, SchemaVersi
 import com.hortonworks.registries.schemaregistry.client.SchemaRegistryClient
 import com.hortonworks.registries.schemaregistry.serdes.avro.AvroSnapshotDeserializer
 import org.apache.avro.Schema
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{ExpectsInputTypes, Expression, UnaryExpression}
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode}
 import org.apache.spark.sql.types.{BinaryType, DataType}
 
 import scala.collection.JavaConverters._
@@ -56,7 +57,12 @@ case class AvroDataToCatalyst(child: Expression, schemaName: String, version: Op
 
   override def nullSafeEval(input: Any): Any = {
     val binary = input.asInstanceOf[Array[Byte]]
-    avroDeser.deserialize(srDeser.deserialize(new ByteArrayInputStream(binary), srSchema.getVersion))
+    val row = avroDeser.deserialize(srDeser.deserialize(new ByteArrayInputStream(binary), srSchema.getVersion))
+    val result = row match {
+      case r: InternalRow => r.copy()
+      case _ => row
+    }
+    result
   }
 
   override def simpleString: String = {
@@ -70,7 +76,7 @@ case class AvroDataToCatalyst(child: Expression, schemaName: String, version: Op
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     val expr = ctx.addReferenceObj("this", this)
     defineCodeGen(ctx, ev, input =>
-      s"(${ctx.boxedType(dataType)})$expr.nullSafeEval($input)")
+      s"(${CodeGenerator.boxedType(dataType)})$expr.nullSafeEval($input)")
   }
 
   private def fetchSchemaVersionInfo(schemaName: String, version: Option[Int]): SchemaVersionInfo = {
