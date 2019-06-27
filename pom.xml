@@ -48,6 +48,16 @@
     <scalatest.version>3.0.5</scalatest.version>
   </properties>
 
+  <repositories>
+    <repository>
+      <id>nexus</id>
+      <name>HWX repo</name>
+      <url>https://nexus-private.hortonworks.com/nexus/content/groups/public</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+  </repositories>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
